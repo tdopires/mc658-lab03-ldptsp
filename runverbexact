@@ -1,0 +1,5 @@
+#!/bin/bash
+./lpdtsp.e -e -v -i in/gr_kinder4_lpd   -o out/gr_kinder4_lpd.EXACT.out
+read -p 'Press ENTER key...'
+./lpdtsp.e -e -v -i in/gr_ulysses23_lpd -o out/gr_ulysses23_lpd.EXACT.out
+read -p 'Press ENTER key...'
