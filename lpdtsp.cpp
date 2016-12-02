@@ -1,4 +1,5 @@
 /*******************************************************************************
+ * VERSION: 1.4
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati
@@ -389,25 +390,53 @@ bool readListDigraphLpdTsp(string          filename,
 SOLUTION_STATUS checkSolutionStatus(LpdTspInstance &instance,
                                     LpdTspSolution &sol,
                                     bool optimal)
-/*
- OK(1) Rota $R$ iniciando e terminando no vértice $d$:
+/* (0) Verifica sobre factibilidade e otimalidade retornada. Note que, se for informada que a 
+ *     solução não é factível, verifica-se o flag optimal, mas nada mais é verificado.
+ *     Mesmo assim, o programa vai mostrar a solução, na esperança de ajudar a realizar 
+ *     algum debug ou melhoria.
+ *     Portanto, o tour da solução gerada nesse caso não precisa estar vazio, 
+ *     pode ter um tour parcial para ser visualizado.
+ *     Outra opção, apenas para debug, é manter o sol.cost infactível encontrado, 
+ *     e ver que erro é retornado. Entretanto, pode ocorrer erro na execução do programa, 
+ *     se o tour fornecido não fizer sentido.
+ * (1) Rota $R$ iniciando e terminando no vértice $d$:
  *     - Verificar se primeiro vértice do tour é o depósito
  *     - Verificar se existe arco na instancia ligando vértice do tour com seu seguinte
- OK(2) Para cada $i = 1, \ldots, k$, o vértice $s_i$ aparece \textit{antes} de $t_i$ em $R$;
- OK(3) Seja um arco $a \in A$ que faz parte da rota $R$ de modo que o vértice $s_i$
+ *     - Em ambas, verifica se o vértice é válido
+ * (2) Para cada $i = 1, \ldots, k$, o vértice $s_i$ aparece \textit{antes} de $t_i$ em $R$;
+ * (3) Seja um arco $a \in A$ que faz parte da rota $R$ de modo que o vértice $s_i$
  *     aparece antes de $a$ e o vértice $t_i$ que aparece depois de $a$ (já verificado por (2)),
  *     então o veículo \textit{carrega} o item $i$ de peso $w_i$ no arco $a$:
  *     verificar se o peso total dos itens que o veículo carrega em 
  *     um arco $a$ é menor ou igual a $C$; e
- OK(4) O custo da rota é igual à soma dos custos de seus arcos; e
- OK(5) Verifica se o custo (cost) retornado é compatı́vel com o lowerBound e o upperBound e com otimalidade.
+ * (4) O custo da rota é igual à soma dos custos de seus arcos; e
+ * (5) Verifica se o custo (cost) retornado é compatı́vel com o lowerBound e o upperBound e com otimalidade.
  */
 {
+   // (0)
+   if(sol.cost >= DBL_MAX - MY_EPS){
+      if(!optimal){
+         return NOT_FOUND_FEASIBLE_SOLUTION;
+      }
+      else{
+         return INCOMPATIBLES_COST_AND_OPTIMAL;
+      }
+   }
+
    // (1)
+   if(!instance.g.valid(sol.tour.front())) return INVALID_NODE;
    if(sol.tour.front() != instance.depot){
       return FIRST_IS_NOT_DEPOT;
    }
+   
+   // TEST: Vamos apagar um vértice do grafo.
+   // instance.g.erase(sol.tour[0]);
+   
+   // TEST: Vamos apagar um vértice da solução.
+   // sol.tour.erase(sol.tour.begin()+2);
+   
    for(int i = 0; i < (int)sol.tour.size(); i++){
+      if(!instance.g.valid(sol.tour[(i+1) % (int)sol.tour.size()])) return INVALID_NODE;
       OutArcIt o(instance.g, sol.tour[i]);
       for(; o != INVALID; ++o) if(instance.g.target(o) == sol.tour[(i+1) % (int)sol.tour.size()]) break;
       if(o == INVALID) return ARC_MISSING;
@@ -490,6 +519,18 @@ string decodeSolutionStatus(SOLUTION_STATUS solutionStatus)
 {  
    stringstream ss;
    switch(solutionStatus){
+      case NOT_FOUND_FEASIBLE_SOLUTION:{
+         ss << "NOT_FOUND_FEASIBLE_SOLUTION";
+         break;
+      }
+      case INCOMPATIBLES_COST_AND_OPTIMAL:{
+         ss << "INCOMPATIBLES_COST_AND_OPTIMAL";
+         break;
+      }
+      case INVALID_NODE:{
+         ss << "INVALID_NODE";
+         break;
+      }
       case FIRST_IS_NOT_DEPOT:{
          ss << "FIRST_IS_NOT_DEPOT";
          break;
@@ -612,6 +653,8 @@ string solutionAsString(LpdTspInstance &instance, LpdTspSolution  &sol)
    ss << "n          : " << instance.n << endl;
    ss << "m          : " << instance.m << endl;
    ss << "k          : " << instance.k << endl;
+   ss << "capacity   : " << instance.capacity << endl;
+   ss << "depot      : " << instance.vname[instance.depot] << endl;
    ss << valuesAsString(sol);
    ss << tourAsString(instance, sol);
    return ss.str();
@@ -651,12 +694,13 @@ string resultAsString(LpdTspInstance  &lpdTspInstance,
    ss << "elapsedTime: " << elapsedTime << " s" << endl;
    ss << "timeLimit  : " << params.timeLimit << " s" <<  endl;
    ss << "optimal    : " <<  (optimal?"Yes":"No") << endl;
+   ss << "sol. status: " << decodeSolutionStatus(solutionStatus) << endl;
+   if(solutionStatus != OK && solutionStatus != NOT_FOUND_FEASIBLE_SOLUTION){
+      ss << "Solution returned has not passed in the verification." << endl;
+   }
    ss << solutionAsString(lpdTspInstance, lpdTspSolution);
 
-   if(solutionStatus != OK){
-      ss << "Solution returned by the student's algorithm has not passed in the verification." << endl;
-      ss << "error      : " << decodeSolutionStatus(solutionStatus) << endl;
-   }
+
 
    return ss.str();
 }

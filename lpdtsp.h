@@ -1,4 +1,5 @@
 /*******************************************************************************
+ * VERSION: 1.4
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati
@@ -90,8 +91,10 @@ public:
 };
 
 typedef enum ENUM_SOLUTION_STATUS
-// TODO
 {
+   NOT_FOUND_FEASIBLE_SOLUTION,
+   INCOMPATIBLES_COST_AND_OPTIMAL,
+   INVALID_NODE,
    FIRST_IS_NOT_DEPOT,
    ARC_MISSING,
    PICKUP_DELIVERY_ORDER_ERROR,
