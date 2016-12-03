@@ -1,3 +1,4 @@
 #!/bin/bash
 ./lpdtsp.e -e -i in/gr_kinder4_lpd   -o out/gr_kinder4_lpd.EXACT.out
 ./lpdtsp.e -e -i in/gr_ulysses23_lpd -o out/gr_ulysses23_lpd.EXACT.out
+./lpdtsp.e -e -i in/gr_berlin51_lpd  -o out/gr_berlin51_lpd.EXACT.out

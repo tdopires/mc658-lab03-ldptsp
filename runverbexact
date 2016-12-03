@@ -3,3 +3,5 @@
 read -p 'Press ENTER key...'
 ./lpdtsp.e -e -v -i in/gr_ulysses23_lpd -o out/gr_ulysses23_lpd.EXACT.out
 read -p 'Press ENTER key...'
+./lpdtsp.e -e -v -i in/gr_berlin51_lpd  -o out/gr_berlin51_lpd.EXACT.out
+read -p 'Press ENTER key...'

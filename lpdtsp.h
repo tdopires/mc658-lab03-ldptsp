@@ -1,5 +1,5 @@
 /*******************************************************************************
- * VERSION: 1.5
+ * VERSION: 1.6
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati

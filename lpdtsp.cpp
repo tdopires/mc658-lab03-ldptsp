@@ -1,5 +1,5 @@
 /*******************************************************************************
- * VERSION: 1.5
+ * VERSION: 1.6
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati
@@ -675,9 +675,15 @@ string tourAndItemsAsString(LpdTspInstance &instance, LpdTspSolution &sol)
    for(int v = 0; v < (int)sol.tour.size(); v++){
       OutArcIt o(instance.g, sol.tour[v]);
       for(; o != INVALID; ++o) if(instance.g.target(o) == sol.tour[(v+1) % (int)sol.tour.size()]) break;
-      // At this point, o is an iterator of the desired arc
-      ss << "(" << instance.vname[instance.g.source(o)] << "," << instance.vname[instance.g.target(o)] << ")";
-      ss << "\t";
+      if(o != INVALID){
+         // At this point, o is an iterator of the desired arc
+         ss << "(" << instance.vname[instance.g.source(o)] << "," << instance.vname[instance.g.target(o)] << ")";
+         ss << "\t";
+      }
+      else{
+         ss << "( ARC_MISSING )";
+         ss << "\t";
+      }
 
       if( instance.t[ sol.tour[v] ] > 0 ){
          load = load - instance.items[ instance.t[ sol.tour[v] ] - 1 ].w;
