@@ -10,11 +10,12 @@
 
 #include <iostream>
 #include <float.h>
+#include <math.h>
 #include <lemon/list_graph.h>
 #include "mygraphlib.h"
 #include "lpdtspalgs.h"
 
-bool naive(const LpdTspInstance &l, LpdTspSolution  &s, int tl);
+bool naive(const LpdTspInstance &l, LpdTspSolution &s, int tl);
 
 DNode find_source(const LpdTspInstance &l, vector<DNode> pickups, int item)
 {
@@ -67,7 +68,6 @@ void populate_selection_without_last_node(const LpdTspInstance &l, vector<DNode>
       for(int i = 0; i < pickups.size(); i++){
          if (!h[ pickups[i] ]){
             selection.push_back(pickups[i]);
-            break;
          }
       }
    }
@@ -97,7 +97,6 @@ void populate_selection(const LpdTspInstance &l, vector<DNode> &selection, DNode
       for(int i = 0; i < pickups.size(); i++){
          if (!h[ pickups[i] ]){
             selection.push_back(pickups[i]);
-            break;
          }
       }
    }
@@ -115,6 +114,7 @@ void populate_selection(const LpdTspInstance &l, vector<DNode> &selection, DNode
 bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
 /* Implemente esta função, entretanto, não altere sua assinatura */
 {
+   clock_t beginExec = clock();
 
    s.tour.clear();
    s.cost = 0.0;
@@ -143,6 +143,7 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          deliveries.push_back(v);
       }
    }
+   /*
    cout << "P = {";
    for(int i = 0; i < pickups.size(); i++)
       cout << " " << l.vname[pickups[i]];
@@ -151,19 +152,18 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
    for(int i = 0; i < deliveries.size(); i++)
       cout << " " << l.vname[deliveries[i]];
    cout << "}" << endl;
+   */
 
    h[l.depot] = 1;
    s.tour.push_back(l.depot);
    h[v_i] = 1;
    s.tour.push_back(v_i);
 
-   cout << "s.cost += " << max_c1i << endl;
    s.cost += max_c1i;
 
    s.tour.push_back(l.depot); // [*] irá ser removido depois
    for(OutArcIt o(l.g, v_i); o != INVALID; ++o){
       if(l.g.target(o) == l.depot){
-         cout << "s.cost += " << l.weight[o] << endl;
          s.cost += l.weight[o];
          break;
       }
@@ -176,6 +176,13 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
    populate_selection(l, selection, h, pickups, deliveries, v_i);
 
    while(selection.size() > 0){
+      clock_t now = clock();
+      if (( (now - beginExec) / CLOCKS_PER_SEC) > tl) {
+         s.tour.clear();
+         s.cost = DBL_MAX;
+         return false;
+      }
+      /*
       cout << "BEGIN WHILE:  " << selection.size() << endl;
       cout << "S = {";
       for(int i = 0; i < selection.size(); i++)
@@ -185,6 +192,7 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
       for(int i = 0; i < s.tour.size(); i++)
          cout << " " << l.vname[s.tour[i]];
       cout << "}" << endl;
+      */
 
       double maximal_s = 0.0;
       DNode k;
@@ -213,7 +221,7 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
       // vamos inserir k na solução causando o menor impacto no custo do trajeto
       std::vector<DNode>::iterator s_start_it = s.tour.begin(); // se é um nó Pickup, podemos inseri-lo em qualquer posição
       
-      cout << "K =  " << l.vname[k] << endl;
+      //cout << "K =  " << l.vname[k] << endl;
 
       if(l.t[k] != 0){ // se é um nó Delivery, precisamos inseri-lo somente depois do seu nó Pickup
          int item = l.t[k];
@@ -222,7 +230,7 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          for(s_start_it = s.tour.begin(); *s_start_it != pk; s_start_it++){}
       }
 
-      cout << "s_start_it = " << std::distance(s.tour.begin(), s_start_it) << endl;
+      //cout << "s_start_it = " << std::distance(s.tour.begin(), s_start_it) << endl;
 
       std::vector<DNode>::iterator k_position = s_start_it;
       double min_k_cost_insertion = DBL_MAX;
@@ -232,18 +240,18 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
 
          for(OutArcIt o(l.g, *i); o != INVALID; ++o){
             if(l.g.target(o) == k){
-               cout << "c_ik" << endl;
+               //cout << "c_ik" << endl;
                c_ik = l.weight[o];
 
                for(InArcIt j(l.g, *(i+1)); j != INVALID; ++j){
                   if(l.g.source(j) == k){
-                     cout << "c_kj" << endl;
+                     //cout << "c_kj" << endl;
                      c_kj = l.weight[j];
                   }
                }
             }
             if(l.g.target(o) == *(i+1)){
-               cout << "c_ij" << endl;
+               //cout << "c_ij" << endl;
                c_ij = l.weight[o];
             }
          }
@@ -251,9 +259,9 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          if (c_ik != 0.0 && c_kj != 0.0 && c_ij != 0.0
             & c_ik + c_kj - c_ij < min_k_cost_insertion){
 
-            cout << "c_ik = " << c_ik << " / " << "c_kj = " << c_kj << " / " << "c_ij = " << c_ij << endl;
+            //cout << "c_ik = " << c_ik << " / " << "c_kj = " << c_kj << " / " << "c_ij = " << c_ij << endl;
             min_k_cost_insertion = c_ik + c_kj - c_ij;
-            cout << "min_k_cost_insertion = " << min_k_cost_insertion << endl;
+            //cout << "min_k_cost_insertion = " << min_k_cost_insertion << endl;
             k_position = i + 1;
          }
       }
@@ -267,38 +275,181 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          continue;
       }
 
-      cout << "K POSITION = " << std::distance(s.tour.begin(), k_position) << " / INSERTION COST " << min_k_cost_insertion << endl;
+      //cout << "K POSITION = " << std::distance(s.tour.begin(), k_position) << " / INSERTION COST " << min_k_cost_insertion << endl;
 
       s.tour.emplace(k_position, k);
       h[k] = 1;
-      cout << "s.cost += " << min_k_cost_insertion << endl;
       s.cost += min_k_cost_insertion;
 
       remove_node(selection, k);
       populate_selection(l, selection, h, pickups, deliveries, k);
 
-      cout << "END WHILE:  " << selection.size() << endl;
-
+      //cout << "END WHILE:  " << selection.size() << endl;
    }
 
    s.tour.erase(s.tour.end() - 1);
 
-   cout << "H = {";
+   /*
+   cout << "TOUR = {";
    for(int i = 0; i < s.tour.size(); i++)
       cout << " " << l.vname[s.tour[i]];
    cout << "}" << endl;
-
+   */
    
    return false;
 }
+
+
+bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector<DNode> &neighbor_sol, double &neighbor_sol_cost)
+{
+   neighbor_sol.clear();
+   neighbor_sol_cost = 0.0;
+
+   for (int i = 0; i < ti; i++) {
+      if (neighbor_sol.size() != 0) {
+         DNode lastNode = neighbor_sol.back();
+
+         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
+            if (l.g.target(o) == tour[i]) {
+               neighbor_sol_cost += l.weight[o];
+               neighbor_sol.push_back(tour[i]);
+            }
+         }
+      } else {
+         neighbor_sol.push_back(tour[i]);
+      }
+   }
+
+   for (int i = tj; i <= ti; i--) {
+      if (neighbor_sol.size() != 0) {
+         DNode lastNode = neighbor_sol.back();
+
+         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
+            if (l.g.target(o) == tour[i]) {
+               neighbor_sol_cost += l.weight[o];
+               neighbor_sol.push_back(tour[i]);
+            }
+         }
+      } else {
+         neighbor_sol.push_back(tour[i]);
+      }
+   }
+
+   for (int i = tj + 1; i < tour.size(); i++) {
+      if (neighbor_sol.size() != 0) {
+         DNode lastNode = neighbor_sol.back();
+
+         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
+            if (l.g.target(o) == tour[i]) {
+               neighbor_sol_cost += l.weight[o];
+               neighbor_sol.push_back(tour[i]);
+            }
+         }
+      } else {
+         neighbor_sol.push_back(tour[i]);
+      }
+   }
+
+   if (neighbor_sol.size() == tour.size())
+      return true;
+
+   return false;
+}
+
+bool get_neighbor_solution(const LpdTspInstance &l, LpdTspSolution &s, vector<DNode> &soll, double &soll_cost)
+{
+   bool found_neighbor = false;
+   for (int i = 0; i < s.tour.size(); i++) {
+      for (int j = i+1; j < s.tour.size(); j++) {
+         vector<DNode> neighbor_sol = vector<DNode>();
+         double neighbor_sol_cost = 0.0;
+         if (t_2_opt(l, s.tour, i, j, neighbor_sol, neighbor_sol_cost)) {
+
+            if (neighbor_sol_cost < soll_cost) {
+               //cout << "@@@@@@@@@@@@@@@@@@@" << endl;
+
+               found_neighbor = true;
+               soll = neighbor_sol;
+               soll_cost = neighbor_sol_cost;
+            }
+
+         }
+      }
+   }
+   return found_neighbor;
+}
+
 //------------------------------------------------------------------------------
-bool metaHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
+bool metaHeur(const LpdTspInstance &l, LpdTspSolution &s, int tl)
 /* Implemente esta função, entretanto, não altere sua assinatura */
 {
-   return naive(l, s, tl);
+   clock_t beginExec = clock();
+   /*
+   clock_t now = clock();
+   if (( (now - beginExec) / CLOCKS_PER_SEC) > tl) {
+      s.tour.clear();
+      s.cost = DBL_MAX;
+      return false;
+   }*/
+   double temperature = 10.0;
+   double k = 1.0;
+   double alpha = 0.95;
+
+   double temperature_stop = 0.001;
+   int internal_loop_stop = 100;   
+
+   constrHeur(l, s, tl); 
+
+   vector<DNode> sol = s.tour;
+   double sol_cost = s.cost;
+
+   vector<DNode> best_sol = sol;
+   double best_sol_cost = sol_cost;
+
+   while(temperature > temperature_stop && ((clock() - beginExec) / CLOCKS_PER_SEC) < tl ){ // loop externo
+
+      int no_change_loops = 0;
+      while(no_change_loops < internal_loop_stop && ((clock() - beginExec) / CLOCKS_PER_SEC) < tl ){
+         vector<DNode> soll = vector<DNode>();
+         double soll_cost = 0.0;
+         if (get_neighbor_solution(l, s, soll, soll_cost)){
+            double delta = soll_cost - sol_cost;
+            if (delta < 0) {
+               no_change_loops = 0;
+
+               sol = soll;
+               sol_cost = soll_cost;
+
+               if (sol_cost < best_sol_cost){
+                  best_sol = sol;
+                  best_sol_cost = sol_cost;
+               }
+            } else {
+               double prob = exp(- delta / k * temperature);
+               double r = ((double) rand() / (RAND_MAX));
+               if (r <= prob){
+                  no_change_loops = 0;
+
+                  sol = soll;
+                  sol_cost = soll_cost;
+               } else {
+                  no_change_loops++;
+               }
+            }
+         } else {
+            no_change_loops++;
+         }
+      }
+      temperature = temperature * alpha;
+   }
+
+   s.tour = best_sol;
+   s.cost = best_sol_cost;
+
+   return false;
 }
 //------------------------------------------------------------------------------
-bool exact(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
+bool exact(const LpdTspInstance &l, LpdTspSolution &s, int tl)
 /* Implemente esta função, entretanto, não altere sua assinatura */
 {
    return naive(l, s, tl);
@@ -340,19 +491,19 @@ bool naive(const LpdTspInstance &instance, LpdTspSolution  &sol, int tl)
          while(i < (int)sol.tour.size() && vl != sol.tour[i]) i++;
          if(i < (int)sol.tour.size()) continue;
 
-         if(instance.s[vl] > 0){
+         if(instance.s[vl] > 0){  // If DNode vl is start of an item
             vlval = instance.weight[o];
          }
-         else if(instance.t[vl] > 0){
+         else if(instance.t[vl] > 0){  // If DNode vl is término of an item
             i = 0;
-            while(i < (int)sol.tour.size() && instance.t[vl] != instance.s[sol.tour[i]]){
+            while(i < (int)sol.tour.size() && instance.t[ vl ] != instance.s[ sol.tour[i] ]){  // Look for the start DNode of the item which terminates in DNode vl
                i++;
             }
             if(i < (int)sol.tour.size()){
                vlval = instance.weight[o];
             }
          }
-
+         
          if(vlval < vval){
             v    = vl;
             vval = vlval;
@@ -377,8 +528,8 @@ bool naive(const LpdTspInstance &instance, LpdTspSolution  &sol, int tl)
          sol.cost += instance.weight[o];
       }
    }
-	
-	return false;
+
+   return false;
 }
 //------------------------------------------------------------------------------
 

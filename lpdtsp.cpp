@@ -1,5 +1,5 @@
 /*******************************************************************************
- * VERSION: 1.4
+ * VERSION: 1.5
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati
@@ -424,39 +424,33 @@ SOLUTION_STATUS checkSolutionStatus(LpdTspInstance &instance,
    }
 
    // (1)
-   if(!instance.g.valid(sol.tour.front())) return INVALID_NODE;
+   if(!instance.g.valid(sol.tour.front())) return INVALID_DNODE;
    if(sol.tour.front() != instance.depot){
       return FIRST_IS_NOT_DEPOT;
    }
    
-   // TEST: Vamos apagar um vértice do grafo.
-   // instance.g.erase(sol.tour[0]);
-   
-   // TEST: Vamos apagar um vértice da solução.
-   // sol.tour.erase(sol.tour.begin()+2);
-   
    for(int i = 0; i < (int)sol.tour.size(); i++){
-      if(!instance.g.valid(sol.tour[(i+1) % (int)sol.tour.size()])) return INVALID_NODE;
+      if(!instance.g.valid(sol.tour[(i+1) % (int)sol.tour.size()])) return INVALID_DNODE;
       OutArcIt o(instance.g, sol.tour[i]);
       for(; o != INVALID; ++o) if(instance.g.target(o) == sol.tour[(i+1) % (int)sol.tour.size()]) break;
       if(o == INVALID) return ARC_MISSING;
    }
 
    // (2)
-   vector<bool> ss(instance.k, false);
-   vector<bool> tt(instance.k, false);
-   for(int i = 1; i < (int)sol.tour.size(); i++){
-      if(instance.s[ sol.tour[i] ] > 0){
-         if(!ss[ instance.s[ sol.tour[i] ] ] && !tt[ instance.s[ sol.tour[i] ] ]){
-            ss[ instance.s[ sol.tour[i] ] ] = true;
+   vector<bool> picked(instance.k, false);         // 0..k-1 to represent items 1..k. Initialized as none of the items is picked
+   vector<bool> delive(instance.k, false);         // 0..k-1 to represent items 1..k. Initialized as none of the items is delivered
+   for(int i = 1; i < (int)sol.tour.size(); i++){  // Do not look at the depot (first node)
+      if(instance.s[ sol.tour[i] ] > 0){           // If in a DNode a item starts
+         if(!picked[ instance.s[ sol.tour[i] ] - 1 ] && !delive[ instance.s[ sol.tour[i] ] - 1 ]){
+            picked[ instance.s[ sol.tour[i] ] - 1 ] = true;
          }
          else{
             return PICKUP_DELIVERY_ORDER_ERROR;
          }
       }
-      else if(instance.t[ sol.tour[i] ] > 0){
-         if(ss[ instance.t[ sol.tour[i] ] ] && !tt[ instance.t[ sol.tour[i] ] ]){
-            tt[ instance.t[ sol.tour[i] ] ] = true;
+      else if(instance.t[ sol.tour[i] ] > 0){      // If in a DNode a item terminates
+         if(picked[ instance.t[ sol.tour[i] ] - 1 ] && !delive[ instance.t[ sol.tour[i] ] - 1 ]){
+            delive[ instance.t[ sol.tour[i] ] - 1] = true;
          }
          else{
             return PICKUP_DELIVERY_ORDER_ERROR;
@@ -467,18 +461,18 @@ SOLUTION_STATUS checkSolutionStatus(LpdTspInstance &instance,
       }
    }
    for(int j = 1; j < instance.k; j++){
-      if(!ss[j]) return ITEM_NOT_PICKED_UP;
-      if(!tt[j]) return ITEM_NOT_DELIVERED;
+      if(!picked[j]) return ITEM_NOT_PICKED_UP;
+      if(!delive[j]) return ITEM_NOT_DELIVERED;
    }
 
    // (3)
    double load = 0.0;
-   for(int i = 0; i < (int)sol.tour.size(); i++){
-      if( instance.t[ sol.tour[i] ] > 0 ){
-         load = load - instance.items[ instance.t[ sol.tour[i] ] ].w;
+   for(int v = 0; v < (int)sol.tour.size(); v++){
+      if( instance.t[ sol.tour[v] ] > 0 ){
+         load = load - instance.items[ instance.t[ sol.tour[v] ] - 1 ].w;
       }
-      if( instance.s[ sol.tour[i] ] > 0 ){
-         load = load + instance.items[ instance.s[ sol.tour[i] ] ].w;
+      if( instance.s[ sol.tour[v] ] > 0 ){
+         load = load + instance.items[ instance.s[ sol.tour[v] ] - 1 ].w;
       }
       if(load < (-1)*MY_EPS) return NEGATIVE_LOAD_ERROR;
       if(load > instance.capacity) return CAPACITY_EXCEDED;
@@ -527,8 +521,8 @@ string decodeSolutionStatus(SOLUTION_STATUS solutionStatus)
          ss << "INCOMPATIBLES_COST_AND_OPTIMAL";
          break;
       }
-      case INVALID_NODE:{
-         ss << "INVALID_NODE";
+      case INVALID_DNODE:{
+         ss << "INVALID_DNODE";
          break;
       }
       case FIRST_IS_NOT_DEPOT:{
@@ -615,7 +609,7 @@ string arcsAndItemsAsString(LpdTspInstance &instance)
    stringstream ss;
    ss << "arcs       :";
    for(ArcIt a(instance.g); a != INVALID; ++a){
-      ss << " (" << instance.vname[instance.g.source(a)] << "." << vti(instance.g.source(a), instance) << "," << instance.vname[instance.g.target(a)] << "." << vti(instance.g.target(a), instance) << ";" << instance.weight[a] << ")";
+      ss << " (" << instance.vname[instance.g.source(a)] << "." << vti(instance.g.source(a), instance) << ", " << instance.vname[instance.g.target(a)] << "." << vti(instance.g.target(a), instance) << "; " << instance.weight[a] << ") ";
    }
    ss << endl;
    return ss.str();
@@ -641,7 +635,7 @@ string itemsAsString(LpdTspInstance &instance)
    stringstream ss;
    ss << "items      :";
    for(int j = 0; j < instance.k; j++){
-      ss << " " << "[" << instance.items[j].i << ":" << instance.vname[instance.items[j].s] << "," << instance.vname[instance.items[j].t] << ";" << instance.items[j].w << "]";
+      ss << " [" << instance.items[j].i << ": (" << instance.vname[instance.items[j].s] << ", " << instance.vname[instance.items[j].t] << "); " << instance.items[j].w << "] ";
    }
    ss << endl;
    return ss.str();
@@ -657,6 +651,7 @@ string solutionAsString(LpdTspInstance &instance, LpdTspSolution  &sol)
    ss << "depot      : " << instance.vname[instance.depot] << endl;
    ss << valuesAsString(sol);
    ss << tourAsString(instance, sol);
+   ss << tourAndItemsAsString(instance, sol);
    return ss.str();
 }
 //------------------------------------------------------------------------------
@@ -668,6 +663,32 @@ string tourAsString(LpdTspInstance &instance, LpdTspSolution  &sol)
       ss << " " << instance.vname[*v];
    }
    ss << endl;
+   return ss.str();
+}
+//------------------------------------------------------------------------------
+string tourAndItemsAsString(LpdTspInstance &instance, LpdTspSolution &sol)
+{
+   stringstream ss;
+   ss << "arc" << "\t" << "load" << endl;
+   
+   double load = 0.0;
+   for(int v = 0; v < (int)sol.tour.size(); v++){
+      OutArcIt o(instance.g, sol.tour[v]);
+      for(; o != INVALID; ++o) if(instance.g.target(o) == sol.tour[(v+1) % (int)sol.tour.size()]) break;
+      // At this point, o is an iterator of the desired arc
+      ss << "(" << instance.vname[instance.g.source(o)] << "," << instance.vname[instance.g.target(o)] << ")";
+      ss << "\t";
+
+      if( instance.t[ sol.tour[v] ] > 0 ){
+         load = load - instance.items[ instance.t[ sol.tour[v] ] - 1 ].w;
+      }
+      if( instance.s[ sol.tour[v] ] > 0 ){
+         load = load + instance.items[ instance.s[ sol.tour[v] ] - 1 ].w;
+      }
+      ss << load;
+      ss << endl;
+   }
+
    return ss.str();
 }
 //------------------------------------------------------------------------------

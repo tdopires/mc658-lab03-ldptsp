@@ -1,5 +1,5 @@
 /*******************************************************************************
- * VERSION: 1.4
+ * VERSION: 1.5
  * MC658 - Projeto e Análise de Algoritmos III - 2s2016
  * Prof.: Flavio Keidi Miyazawa
  * PED: Mauro Henrique Mulati
@@ -94,7 +94,7 @@ typedef enum ENUM_SOLUTION_STATUS
 {
    NOT_FOUND_FEASIBLE_SOLUTION,
    INCOMPATIBLES_COST_AND_OPTIMAL,
-   INVALID_NODE,
+   INVALID_DNODE,
    FIRST_IS_NOT_DEPOT,
    ARC_MISSING,
    PICKUP_DELIVERY_ORDER_ERROR,
@@ -133,7 +133,8 @@ string          arcsAndItemsAsString(LpdTspInstance &l);
 inline string   vti(DNode v, LpdTspInstance &l);
 string          itemsAsString(LpdTspInstance &l);
 string          solutionAsString(LpdTspInstance &lpdTspInstance, LpdTspSolution  &lpdTspSolution);
-string          tourAsString(LpdTspInstance  &lpdTspInstance, LpdTspSolution  &lpdTspSolution);
+string          tourAsString(LpdTspInstance &lpdTspInstance, LpdTspSolution  &lpdTspSolution);
+string          tourAndItemsAsString(LpdTspInstance &lpdTspInstance, LpdTspSolution  &lpdTspSolution);
 string          valuesAsString(LpdTspSolution &lpdTspSolution);
 string          resultAsString(LpdTspInstance  &lpdTspInstance,
                               LpdTspSolution  &lpdTspSolution,
