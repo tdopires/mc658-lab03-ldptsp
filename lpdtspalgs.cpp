@@ -366,7 +366,7 @@ bool get_neighbor_solution(const LpdTspInstance &l, LpdTspSolution &s, vector<DN
          if (t_2_opt(l, s.tour, i, j, neighbor_sol, neighbor_sol_cost)) {
 
             if (neighbor_sol_cost < soll_cost) {
-               //cout << "@@@@@@@@@@@@@@@@@@@" << endl;
+               cout << "@@@@@@@@@@@@@@@@@@@" << endl;
 
                found_neighbor = true;
                soll = neighbor_sol;
