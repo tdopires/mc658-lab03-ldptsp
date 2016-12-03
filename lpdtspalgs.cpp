@@ -305,7 +305,7 @@ bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector
    neighbor_sol.clear();
    neighbor_sol_cost = 0.0;
 
-   for (int i = 0; i < ti; i++) {
+   for (int i = 0; i < ti; i++){
       if (neighbor_sol.size() != 0) {
          DNode lastNode = neighbor_sol.back();
 
@@ -320,7 +320,7 @@ bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector
       }
    }
 
-   for (int i = tj; i <= ti; i--) {
+   for (int i = tj; i >= ti; i--){
       if (neighbor_sol.size() != 0) {
          DNode lastNode = neighbor_sol.back();
 
@@ -335,7 +335,7 @@ bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector
       }
    }
 
-   for (int i = tj + 1; i < tour.size(); i++) {
+   for (int i = tj + 1; i < tour.size(); i++){
       if (neighbor_sol.size() != 0) {
          DNode lastNode = neighbor_sol.back();
 
@@ -359,14 +359,16 @@ bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector
 bool get_neighbor_solution(const LpdTspInstance &l, LpdTspSolution &s, vector<DNode> &soll, double &soll_cost)
 {
    bool found_neighbor = false;
+   double min_neighbor_sol_cost = DBL_MAX;
+   
    for (int i = 0; i < s.tour.size(); i++) {
       for (int j = i+1; j < s.tour.size(); j++) {
          vector<DNode> neighbor_sol = vector<DNode>();
          double neighbor_sol_cost = 0.0;
          if (t_2_opt(l, s.tour, i, j, neighbor_sol, neighbor_sol_cost)) {
-
-            if (neighbor_sol_cost < soll_cost) {
-               cout << "@@@@@@@@@@@@@@@@@@@" << endl;
+            
+            if (neighbor_sol_cost < min_neighbor_sol_cost) {
+               min_neighbor_sol_cost = neighbor_sol_cost;
 
                found_neighbor = true;
                soll = neighbor_sol;
