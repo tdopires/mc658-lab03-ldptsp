@@ -93,26 +93,12 @@ void populate_selection(const LpdTspInstance &l, vector<DNode> &selection, DNode
       selection.push_back(find_destination(l, deliveries, item));
    }
    
-   if(selection.size() == 0){
-      for(int i = 0; i < pickups.size(); i++){
-         if (!h[ pickups[i] ]){
-            selection.push_back(pickups[i]);
-         }
-      }
-   }
-   if(selection.size() == 0){
-      for(int i = 0; i < deliveries.size(); i++){
-         if (h[find_source(l, pickups, l.t[ deliveries[i] ])] && !h[deliveries[i]]){
-            selection.push_back(deliveries[i]);
-         }
-      }
-   }
+   populate_selection_without_last_node(l, selection, h, pickups, deliveries);
 }
 
 
 //------------------------------------------------------------------------------
-bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
-/* Implemente esta função, entretanto, não altere sua assinatura */
+bool constrHeur_v0_farthest_insertion(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
 {
    clock_t beginExec = clock();
 
@@ -143,16 +129,6 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          deliveries.push_back(v);
       }
    }
-   /*
-   cout << "P = {";
-   for(int i = 0; i < pickups.size(); i++)
-      cout << " " << l.vname[pickups[i]];
-   cout << "}" << endl;
-   cout << "D = {";
-   for(int i = 0; i < deliveries.size(); i++)
-      cout << " " << l.vname[deliveries[i]];
-   cout << "}" << endl;
-   */
 
    h[l.depot] = 1;
    s.tour.push_back(l.depot);
@@ -182,17 +158,6 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          s.cost = DBL_MAX;
          return false;
       }
-      /*
-      cout << "BEGIN WHILE:  " << selection.size() << endl;
-      cout << "S = {";
-      for(int i = 0; i < selection.size(); i++)
-         cout << " " << l.vname[selection[i]];
-      cout << "}" << endl;
-      cout << "H = {";
-      for(int i = 0; i < s.tour.size(); i++)
-         cout << " " << l.vname[s.tour[i]];
-      cout << "}" << endl;
-      */
 
       double maximal_s = 0.0;
       DNode k;
@@ -217,20 +182,15 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          }
       }
 
-
       // vamos inserir k na solução causando o menor impacto no custo do trajeto
       std::vector<DNode>::iterator s_start_it = s.tour.begin(); // se é um nó Pickup, podemos inseri-lo em qualquer posição
       
-      //cout << "K =  " << l.vname[k] << endl;
-
       if(l.t[k] != 0){ // se é um nó Delivery, precisamos inseri-lo somente depois do seu nó Pickup
          int item = l.t[k];
          DNode pk = find_source(l, pickups, item);
 
          for(s_start_it = s.tour.begin(); *s_start_it != pk; s_start_it++){}
       }
-
-      //cout << "s_start_it = " << std::distance(s.tour.begin(), s_start_it) << endl;
 
       std::vector<DNode>::iterator k_position = s_start_it;
       double min_k_cost_insertion = DBL_MAX;
@@ -240,18 +200,15 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
 
          for(OutArcIt o(l.g, *i); o != INVALID; ++o){
             if(l.g.target(o) == k){
-               //cout << "c_ik" << endl;
                c_ik = l.weight[o];
 
                for(InArcIt j(l.g, *(i+1)); j != INVALID; ++j){
                   if(l.g.source(j) == k){
-                     //cout << "c_kj" << endl;
                      c_kj = l.weight[j];
                   }
                }
             }
             if(l.g.target(o) == *(i+1)){
-               //cout << "c_ij" << endl;
                c_ij = l.weight[o];
             }
          }
@@ -259,9 +216,7 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          if (c_ik != 0.0 && c_kj != 0.0 && c_ij != 0.0
             & c_ik + c_kj - c_ij < min_k_cost_insertion){
 
-            //cout << "c_ik = " << c_ik << " / " << "c_kj = " << c_kj << " / " << "c_ij = " << c_ij << endl;
             min_k_cost_insertion = c_ik + c_kj - c_ij;
-            //cout << "min_k_cost_insertion = " << min_k_cost_insertion << endl;
             k_position = i + 1;
          }
       }
@@ -275,28 +230,166 @@ bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
          continue;
       }
 
-      //cout << "K POSITION = " << std::distance(s.tour.begin(), k_position) << " / INSERTION COST " << min_k_cost_insertion << endl;
-
       s.tour.emplace(k_position, k);
       h[k] = 1;
       s.cost += min_k_cost_insertion;
 
       remove_node(selection, k);
       populate_selection(l, selection, h, pickups, deliveries, k);
-
-      //cout << "END WHILE:  " << selection.size() << endl;
    }
 
    s.tour.erase(s.tour.end() - 1);
 
-   /*
-   cout << "TOUR = {";
-   for(int i = 0; i < s.tour.size(); i++)
-      cout << " " << l.vname[s.tour[i]];
-   cout << "}" << endl;
-   */
-   
    return false;
+}
+
+bool v1_f_insertion(const LpdTspInstance &l, LpdTspSolution &s, DNodeIntMap &h, vector<int> &items_status, double &capacityCheck, clock_t beginExec, int tl)
+{
+   if (((clock() - beginExec) / CLOCKS_PER_SEC) > (tl-0.01))
+      return false;
+
+   if (s.tour.size() == 2 * l.k + 1)
+      return true;
+
+   DNode node_to_insert = INVALID;
+   double node_to_insert_cost = 0.0;
+   
+   bool find_node_to_insert = true;
+   vector<DNode> black_list = vector<DNode>();
+
+   while (find_node_to_insert) {
+      DNode min_delivery_node = INVALID;
+      DNode min_pickup_node = INVALID;
+      double min_delivery_cost = DBL_MAX;
+      double min_pickup_cost = DBL_MAX;
+
+      for(OutArcIt o(l.g, s.tour.back()); o != INVALID; ++o){
+         DNode targetNode = l.g.target(o);
+
+         if (h[targetNode] || contains_node(black_list, targetNode))
+            continue;
+
+         int s = l.s[ targetNode ];
+         // is a Pickup node and item was not picked up and item weight will not be over capacity
+         if(s != 0 && items_status[s-1] == 0 && capacityCheck + l.items[s-1].w <= l.capacity && l.weight[o] < min_pickup_cost) {
+            min_pickup_cost = l.weight[o];
+            min_pickup_node = targetNode;
+         }
+
+         int t = l.t[ targetNode ];
+         // is a Delivery node and item was already picked up
+         if(t != 0 && items_status[t-1] == 1 && l.weight[o] < min_delivery_cost) {
+            min_delivery_cost = l.weight[o];
+            min_delivery_node = targetNode;
+         }
+      }
+
+      if (min_delivery_node != INVALID || min_pickup_node != INVALID) {
+         double r = ((double) rand() / (RAND_MAX)); // r is a random probability
+         if (min_pickup_node == INVALID)
+            r = 0.0; // if we just have a delivery node and don't have a pickup node
+         else if (min_delivery_node == INVALID)
+            r = 1.0; // if we just have a pickup node and don't have a delivery node
+
+         if (r <= 0.5) {
+            int itemNo = l.t[ min_delivery_node ] - 1;
+            capacityCheck -= l.items[itemNo].w;
+            items_status[itemNo] = 2;
+
+            node_to_insert = min_delivery_node;
+            node_to_insert_cost = min_delivery_cost;
+         } else {
+            int itemNo = l.s[ min_pickup_node ] - 1;
+            capacityCheck += l.items[itemNo].w;
+            items_status[itemNo] = 1;
+
+            node_to_insert = min_pickup_node;
+            node_to_insert_cost = min_pickup_cost;
+         }
+
+         s.tour.push_back(node_to_insert);
+         h[node_to_insert] = 1;
+         s.cost += node_to_insert_cost;
+
+         bool insertion_ok = v1_f_insertion(l, s, h, items_status, capacityCheck, beginExec, tl);
+         if (!insertion_ok) {
+            s.tour.erase(s.tour.end() - 1);
+            h[node_to_insert] = 0;
+            s.cost -= node_to_insert_cost;
+
+            if (r <= 0.5) {
+               int itemNo = l.t[ min_delivery_node ] - 1;
+               capacityCheck += l.items[itemNo].w;
+               items_status[itemNo] = 1;
+            } else {
+               int itemNo = l.s[ min_pickup_node ] - 1;
+               capacityCheck -= l.items[itemNo].w;
+               items_status[itemNo] = 0;
+            }
+            
+            black_list.push_back(node_to_insert);
+         } else {
+            return true;
+         }
+      } else {
+         find_node_to_insert = false;
+      }
+   }
+   
+   // we didn't find a valid node to insert
+   return false;
+}
+
+//------------------------------------------------------------------------------
+bool constrHeur_v1_f_insertion(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
+{
+   clock_t beginExec = clock();
+
+   s.tour.clear();
+   s.cost = 0.0;
+
+   DNodeIntMap h(l.g);
+   for(DNodeIt v(l.g); v != INVALID; ++v){
+      h[v] = 0;
+   }
+
+   s.tour.push_back(l.depot);
+   h[l.depot] = 1;
+
+   vector<int> items_status(l.k, 0); // 0 para item não pego, 1 para item pego, 2 para entregue
+   double capacityCheck = 0.0;
+
+   v1_f_insertion(l, s, h, items_status, capacityCheck, beginExec, tl);
+
+   for (OutArcIt o(l.g, s.tour.back()); o != INVALID; ++o){
+      if (l.g.target(o) == l.depot) {
+         s.cost += l.weight[o];
+      }
+   }
+
+   return false;
+}
+//------------------------------------------------------------------------------
+bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
+/* Implemente esta função, entretanto, não altere sua assinatura */
+{
+   return constrHeur_v1_f_insertion(l, s, tl);
+}
+
+void insert_node_i_on_2_opt_tour(const LpdTspInstance &l, vector<DNode> tour, int i, vector<DNode> &neighbor_sol, double &neighbor_sol_cost)
+{
+   if (neighbor_sol.size() != 0) {
+      DNode lastNode = neighbor_sol.back();
+
+      for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
+         if (l.g.target(o) == tour[i]) {
+            neighbor_sol_cost += l.weight[o];
+            neighbor_sol.push_back(tour[i]);
+         }
+      }
+   } else {
+      neighbor_sol.push_back(tour[i]);
+   }
 }
 
 
@@ -305,62 +398,72 @@ bool t_2_opt(const LpdTspInstance &l, vector<DNode> tour, int ti, int tj, vector
    neighbor_sol.clear();
    neighbor_sol_cost = 0.0;
 
-   for (int i = 0; i < ti; i++){
-      if (neighbor_sol.size() != 0) {
-         DNode lastNode = neighbor_sol.back();
+   for(int i = 0; i < ti; i++){
+      insert_node_i_on_2_opt_tour(l, tour, i, neighbor_sol, neighbor_sol_cost);
+   }
 
-         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
-            if (l.g.target(o) == tour[i]) {
-               neighbor_sol_cost += l.weight[o];
-               neighbor_sol.push_back(tour[i]);
-            }
-         }
-      } else {
-         neighbor_sol.push_back(tour[i]);
+   for(int i = tj; i >= ti; i--){
+      insert_node_i_on_2_opt_tour(l, tour, i, neighbor_sol, neighbor_sol_cost);
+   }
+
+   for(int i = tj + 1; i < tour.size(); i++){
+      insert_node_i_on_2_opt_tour(l, tour, i, neighbor_sol, neighbor_sol_cost);
+   }
+
+   DNode lastNode = neighbor_sol.back();
+   for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
+      if (l.g.target(o) == l.depot) {
+         neighbor_sol_cost += l.weight[o];
       }
    }
 
-   for (int i = tj; i >= ti; i--){
-      if (neighbor_sol.size() != 0) {
-         DNode lastNode = neighbor_sol.back();
+   if(neighbor_sol.size() != tour.size())
+      return false;
 
-         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
-            if (l.g.target(o) == tour[i]) {
-               neighbor_sol_cost += l.weight[o];
-               neighbor_sol.push_back(tour[i]);
-            }
+   if (neighbor_sol[0] != l.depot)
+      return false;
+
+   vector<int> items_status(l.k, 0); // 0 para item não pego, 1 para item pego, 2 para entregue
+
+   double currentItemCapacity = 0.0;
+
+   for(int i = 0; i < neighbor_sol.size(); i++) {
+      if(l.s[ neighbor_sol[i] ] != 0){ // is a Pickup node
+         int itemNo = l.s[ neighbor_sol[i] ] - 1;
+         if (items_status[itemNo] == 0) {
+            currentItemCapacity += l.items[itemNo].w;
+            items_status[itemNo] = 1;
+         } else {
+            return false;
          }
-      } else {
-         neighbor_sol.push_back(tour[i]);
+      } else if(l.t[ neighbor_sol[i] ] != 0){ // is a Delivery node
+         int itemNo = l.t[ neighbor_sol[i] ] - 1;
+         if (items_status[itemNo] == 1) {
+            currentItemCapacity -= l.items[itemNo].w;
+            items_status[itemNo] = 2;
+         } else {
+            return false;
+         }
+      }
+      
+      if(currentItemCapacity > l.capacity){
+         return false;
       }
    }
 
-   for (int i = tj + 1; i < tour.size(); i++){
-      if (neighbor_sol.size() != 0) {
-         DNode lastNode = neighbor_sol.back();
-
-         for (OutArcIt o(l.g, lastNode); o != INVALID; ++o){
-            if (l.g.target(o) == tour[i]) {
-               neighbor_sol_cost += l.weight[o];
-               neighbor_sol.push_back(tour[i]);
-            }
-         }
-      } else {
-         neighbor_sol.push_back(tour[i]);
+   for(int i = 0; i < l.k; i++) {
+      if (items_status[i] != 2) {
+         return false;
       }
    }
-
-   if (neighbor_sol.size() == tour.size())
-      return true;
-
-   return false;
+   return true;
 }
 
 bool get_neighbor_solution(const LpdTspInstance &l, LpdTspSolution &s, vector<DNode> &soll, double &soll_cost)
 {
    bool found_neighbor = false;
    double min_neighbor_sol_cost = DBL_MAX;
-   
+
    for (int i = 0; i < s.tour.size(); i++) {
       for (int j = i+1; j < s.tour.size(); j++) {
          vector<DNode> neighbor_sol = vector<DNode>();
