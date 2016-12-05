@@ -291,7 +291,7 @@ bool v1_f_insertion(const LpdTspInstance &l, LpdTspSolution &s, DNodeIntMap &h, 
          else if (min_delivery_node == INVALID)
             r = 1.0; // if we just have a pickup node and don't have a delivery node
 
-         if (r <= 0.5) {
+         if (r < 0.5) {
             int itemNo = l.t[ min_delivery_node ] - 1;
             capacityCheck -= l.items[itemNo].w;
             items_status[itemNo] = 2;
@@ -369,6 +369,7 @@ bool constrHeur_v1_f_insertion(const LpdTspInstance &l, LpdTspSolution  &s, int 
 
    return false;
 }
+
 //------------------------------------------------------------------------------
 bool constrHeur(const LpdTspInstance &l, LpdTspSolution  &s, int tl)
 /* Implemente esta função, entretanto, não altere sua assinatura */
@@ -489,13 +490,7 @@ bool metaHeur(const LpdTspInstance &l, LpdTspSolution &s, int tl)
 /* Implemente esta função, entretanto, não altere sua assinatura */
 {
    clock_t beginExec = clock();
-   /*
-   clock_t now = clock();
-   if (( (now - beginExec) / CLOCKS_PER_SEC) > tl) {
-      s.tour.clear();
-      s.cost = DBL_MAX;
-      return false;
-   }*/
+
    double temperature = 10.0;
    double k = 1.0;
    double alpha = 0.95;
@@ -503,7 +498,7 @@ bool metaHeur(const LpdTspInstance &l, LpdTspSolution &s, int tl)
    double temperature_stop = 0.001;
    int internal_loop_stop = 100;   
 
-   constrHeur(l, s, tl); 
+   constrHeur(l, s, tl);
 
    vector<DNode> sol = s.tour;
    double sol_cost = s.cost;
